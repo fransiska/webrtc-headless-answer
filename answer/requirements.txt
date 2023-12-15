@@ -1,0 +1,3 @@
+aiortc
+firebase-admin
+# sudo apt-get install libsrtp2-dev
