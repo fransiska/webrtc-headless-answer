@@ -4,11 +4,14 @@ import asyncio
 import os
 import platform
 import sys
+import threading
 import time
 
 from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaPlayer
 from firebase_admin import credentials, firestore, initialize_app
+
+MAX_CALL_TIME_SEC = 120
 
 def str_to_candidate(c, sdpMid):
     cs = c.split(" ")
@@ -66,10 +69,25 @@ async def answer(call_ref, video_path):
         await pc.addIceCandidate(c)
 
     call_ref.update({"answer": {"sdp": pc.localDescription.sdp, "type": "answer"}})
+
     print("answered")
-    await asyncio.sleep(60)
-    while True:
-        await asyncio.sleep(1)
+
+    # Create an Event for notifying main thread.
+    update_event = threading.Event()
+
+    def on_snapshot(col_snapshot, changes, read_time):
+        """There is no way to define this elsewhere since document.on_snapshot doesn't allow passing args
+        """
+        for change in changes:
+            if change.type.name == "MODIFIED":
+                hangup = col_snapshot[0].get('hangup')
+                if hangup:
+                    update_event.set()
+
+    # Watch the collection query
+    event_watch = call_ref.on_snapshot(on_snapshot)
+
+    update_event.wait(MAX_CALL_TIME_SEC)
 
 def main(offer_id, video_path, firebase_credentials_path):
     cred = credentials.Certificate(firebase_credentials_path)
@@ -82,7 +100,7 @@ def main(offer_id, video_path, firebase_credentials_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python answer.py <caller_id> <video_path>")
+        print("Usage: FIREBASE_CREDENTIALS=firebase-adminsdk.json python answer.py <caller_id> <video_path>")
         exit()
 
     offer_id = sys.argv[1]
