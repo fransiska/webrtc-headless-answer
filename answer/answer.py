@@ -4,7 +4,6 @@ import asyncio
 import os
 import platform
 import sys
-import threading
 import time
 
 from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
@@ -73,7 +72,7 @@ async def answer(call_ref, video_path):
     print("answered")
 
     # Create an Event for notifying main thread.
-    update_event = threading.Event()
+    update_event = asyncio.Event()
 
     def on_snapshot(col_snapshot, changes, read_time):
         """There is no way to define this elsewhere since document.on_snapshot doesn't allow passing args
@@ -87,7 +86,10 @@ async def answer(call_ref, video_path):
     # Watch the collection query
     event_watch = call_ref.on_snapshot(on_snapshot)
 
-    update_event.wait(MAX_CALL_TIME_SEC)
+    try:
+        await asyncio.wait_for(update_event.wait(), timeout=MAX_CALL_TIME_SEC)
+    except asyncio.exceptions.TimeoutError:
+        print("call timeout")
 
 def main(offer_id, video_path, firebase_credentials_path):
     cred = credentials.Certificate(firebase_credentials_path)
