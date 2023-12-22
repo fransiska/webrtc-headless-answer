@@ -23,8 +23,8 @@ const pc = new RTCPeerConnection(servers);
 let remoteStream = null;
 
 // HTML elements
-const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
+const destinationInput = document.getElementById('destinationInput');
 const callButton = document.getElementById('callButton');
 const callInput = document.getElementById('callInput');
 const remoteVideo = document.getElementById('remoteVideo');
@@ -66,7 +66,7 @@ callButton.onclick = async () => {
     type: offerDescription.type,
   };
 
-  await setDoc(callDoc, { offer });
+  await setDoc(callDoc, { offer, uid: destinationInput.value });
 
   // Listen for remote answer
   onSnapshot(callDoc, (snapshot) => {
