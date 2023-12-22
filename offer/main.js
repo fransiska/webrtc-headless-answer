@@ -20,7 +20,6 @@ const servers = {
 
 // Global State
 const pc = new RTCPeerConnection(servers);
-let localStream = null;
 let remoteStream = null;
 
 // HTML elements
@@ -31,33 +30,21 @@ const callInput = document.getElementById('callInput');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
 
-// 1. Setup media sources
-
-webcamButton.onclick = async () => {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  remoteStream = new MediaStream();
-
-  // Push tracks from local stream to peer connection
-  localStream.getTracks().forEach((track) => {
-    pc.addTrack(track, localStream);
-  });
+// Create an offer
+callButton.onclick = async () => {
+  const transceiver = pc.addTransceiver('video');
+  transceiver.direction = 'recvonly';
 
   // Pull tracks from remote stream, add to video stream
+  remoteStream = new MediaStream();
   pc.ontrack = (event) => {
     event.streams[0].getTracks().forEach((track) => {
       remoteStream.addTrack(track);
     });
   };
 
-  webcamVideo.srcObject = localStream;
   remoteVideo.srcObject = remoteStream;
 
-  callButton.disabled = false;
-  webcamButton.disabled = true;
-};
-
-// 2. Create an offer
-callButton.onclick = async () => {
   // Reference Firestore collections for signaling
   const callDoc = doc(collection(firestore, 'calls'));
   const offerCandidates = collection(callDoc, 'offerCandidates');
